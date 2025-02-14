@@ -6,15 +6,14 @@ import time
 import csv
 import os
 import threading
-import requests
 import json
 
 # Credenciales de Telegram
 BOT_TOKEN = "7974219914:AAHAK1tg7lLQ4OkRV2UBQUeuz-3XhsRt3VE"
 GROUP_ESPANOL_ID = -1002341781692
-GROUP_INGLES_ID = -1002286734461
+GROUP_INGLES_ID = -1002286734461  
 GROUP_AIRDROP_ID = -1002163471969
-AIR_DROP_LINK = "https://t.me/+TuLinkFijoAirdrop"  # Enlace manual en caso de error
+AIR_DROP_LINK = "https://t.me/+TuLinkFijoAirdrop"  # Enlace de respaldo manual
 
 # Configurar conexión con Google Sheets
 SHEET_CREDENTIALS = "bot-telegram-referidos.json"
@@ -36,9 +35,8 @@ client = gspread.authorize(credentials)
 sheet = client.open_by_key(SHEET_ID).sheet1
 
 # Archivo CSV para almacenar referidos
-CSV_FILE = "referidos.csv"
 ID_FILE = "usuarios_ids.csv"
-usuarios_ids = {}  # Diccionario para almacenar IDs de usuarios
+usuarios_ids = {}  
 moved_users = set()
 
 # Crear los archivos CSV si no existen
@@ -69,7 +67,41 @@ def guardar_usuarios_ids():
         for usuario, user_id in usuarios_ids.items():
             writer.writerow([usuario, user_id])
 
-# Función para contar referidos en Google Sheets
+# Función para manejar nuevos usuarios y registrar su ID
+@bot.message_handler(func=lambda message: message.text and message.text.lower() in ["participar", "participate"])
+def enviar_informacion(message):
+    username = message.from_user.username.lower() if message.from_user.username else f"user_{message.from_user.id}"
+    if not username.startswith("@"):
+        username = f"@{username}"  
+
+    usuarios_ids[username] = str(message.from_user.id)
+    guardar_usuarios_ids()
+    
+    idioma = "en" if "participate" in message.text.lower() else "es"
+    
+    mensaje_es = """👋 ¡Bienvenido! Para participar en la promoción, sigue estos pasos:
+
+1️⃣ Completa el formulario aquí: https://docs.google.com/forms/d/e/1FAIpQLScljV2XiOm_1aacLMsXGPK2QifIVeBAx76Ix_rcHbst9O1x2Q/viewform
+
+Si no tienes un referido, coloca tu nombre.
+
+2️⃣ Comparte tu usuario con amigos.
+
+3️⃣ ¡Consigue 10 referidos y desbloquea el grupo del Airdrop! 🚀"""
+    
+    mensaje_en = """👋 Welcome! To participate in the promotion, follow these steps:
+
+1️⃣ Fill out the form here: https://docs.google.com/forms/d/e/1FAIpQLScljV2XiOm_1aacLMsXGPK2QifIVeBAx76Ix_rcHbst9O1x2Q/viewform
+
+If you don't have a referrer, put your name!
+
+2️⃣ Share your username with friends.
+
+3️⃣ Get 10 referrals and unlock the Airdrop group! 🚀"""
+    
+    bot.send_message(message.chat.id, mensaje_es if idioma == "es" else mensaje_en)
+
+# Función para contar referidos
 def contar_referidos():
     conteo = {}
     datos = sheet.get_all_records()
@@ -77,12 +109,12 @@ def contar_referidos():
         referido = row.get("¿Quién te refirió? @:", "").strip().lower()
         if referido:
             if not referido.startswith("@"):
-                referido = f"@{referido}"  # Agregar @ si no lo tiene
+                referido = f"@{referido}"  
             conteo[referido] = conteo.get(referido, 0) + 1
     print(f"📊 Conteo de referidos actualizado: {conteo}")
     return conteo
 
-# Función para verificar referidos
+# Función para verificar referidos y mover usuarios al grupo Airdrop
 def verificar_referidos():
     while True:
         conteo = contar_referidos()
@@ -97,23 +129,26 @@ def mover_usuario(user):
     try:
         user_key = user.lower().strip()
         if not user_key.startswith("@"):
-            user_key = f"@{user_key}"  # Agregar @ si no lo tiene
+            user_key = f"@{user_key}"  
+
         user_id = usuarios_ids.get(user_key)
 
         if not user_id:
-            print(f"⚠️ No se encontró el ID de {user}. Es posible que no haya escrito 'PARTICIPAR'.")
+            print(f"⚠️ ERROR: No se encontró el ID de {user}.")
+            bot.send_message(GROUP_ESPANOL_ID, f"⚠️ {user}, tu ID no está registrado. Envíame un mensaje en privado con 'PARTICIPAR' para registrarte correctamente.")
             return
 
-        # Intentar generar un enlace de invitación dinámico
         try:
             invite_link = bot.create_chat_invite_link(GROUP_AIRDROP_ID, member_limit=1).invite_link
         except:
-            invite_link = AIR_DROP_LINK  # Si falla, usar el enlace manual
-        
+            invite_link = AIR_DROP_LINK  
+
         bot.send_message(user_id, f"""🎉 Congratulations {user}! You have reached 10 referrals and unlocked access to the Airdrop group.
 
 🔗 Join here: {invite_link}""")
+
         bot.send_message(GROUP_AIRDROP_ID, f"🚀 Welcome {user} to the Airdrop Group! / ¡Bienvenido {user} al Grupo del Airdrop!")
+
         moved_users.add(user)
     except Exception as e:
         print(f"❌ Error al mover usuario: {e}")
@@ -122,7 +157,7 @@ def mover_usuario(user):
 if __name__ == "__main__":
     cargar_usuarios_ids()
     bot.send_message(GROUP_ESPANOL_ID, "🤖 Bot de referidos activo! Envía 'PARTICIPAR' a @referidnewtokenbot para registrarte y recibir el formulario.")
-    bot.send_message(GROUP_INGLES_ID, "🤖 Referral bot is active! Send 'PARTICIPATE' to @referidnewtokenbot register and receive the form.")
+    bot.send_message(GROUP_INGLES_ID, "🤖 Referral bot is active! Send 'PARTICIPATE' to @referidnewtokenbot to register and receive the form.")
     
     thread = threading.Thread(target=verificar_referidos, daemon=True)
     thread.start()
