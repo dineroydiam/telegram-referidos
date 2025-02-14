@@ -105,13 +105,16 @@ If you don't have a referrer, put your name!
 def contar_referidos():
     conteo = {}
     datos = sheet.get_all_records()
+    
+    print("🔎 Procesando referidos en Google Sheets...")
     for row in datos:
         referido = row.get("¿Quién te refirió? @:", "").strip().lower()
         if referido:
             if not referido.startswith("@"):
-                referido = f"@{referido}"  
+                referido = f"@{referido}"  # Asegurar que todos tengan @
             conteo[referido] = conteo.get(referido, 0) + 1
-    print(f"📊 Conteo de referidos actualizado: {conteo}")
+            print(f"📊 {referido} tiene {conteo[referido]} referidos.")
+    
     return conteo
 
 # Función para verificar referidos y mover usuarios al grupo Airdrop
