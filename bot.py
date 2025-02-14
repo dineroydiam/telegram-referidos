@@ -57,9 +57,10 @@ def cargar_usuarios_ids():
     if os.path.exists(ID_FILE):
         with open(ID_FILE, mode="r", encoding="utf-8") as file:
             reader = csv.reader(file)
-            next(reader)  # Saltar encabezado
+            next(reader, None)  # Saltar encabezado
             for row in reader:
-                usuarios_ids[row[0].lower()] = row[1]  # Guardar en minúsculas para evitar errores
+                if len(row) >= 2:
+                    usuarios_ids[row[0].strip().lower()] = row[1].strip()
     print("📂 Lista de usuarios cargados en memoria:", usuarios_ids)
 
 # Función para guardar IDs en CSV
@@ -107,10 +108,8 @@ def contar_referidos():
     datos = sheet.get_all_records()
     for row in datos:
         referido = "@" + row.get("¿Quién te refirió? @:", "").lstrip('@').strip().lower()
-        if referido in conteo:
-            conteo[referido] += 1
-        else:
-            conteo[referido] = 1
+        if referido:
+            conteo[referido] = conteo.get(referido, 0) + 1
     print(f"📊 Conteo de referidos actualizado: {conteo}")
     return conteo
 
