@@ -55,7 +55,10 @@ def cargar_usuarios_ids():
             next(reader, None)  # Saltar encabezado
             for row in reader:
                 if len(row) >= 2:
-                    usuarios_ids[row[0].strip().lower()] = row[1].strip()
+                    usuario = row[0].strip().lower()
+                    if not usuario.startswith("@"):
+                        usuario = f"@{usuario}"  # Agregar @ si no lo tiene
+                    usuarios_ids[usuario] = row[1].strip()
     print("📂 Lista de usuarios cargados en memoria:", usuarios_ids)
 
 # Función para guardar IDs en CSV
@@ -66,44 +69,15 @@ def guardar_usuarios_ids():
         for usuario, user_id in usuarios_ids.items():
             writer.writerow([usuario, user_id])
 
-# Función para manejar nuevos usuarios y detectar idioma
-@bot.message_handler(func=lambda message: message.text and message.text.lower() in ["participar", "participate"])
-def enviar_informacion(message):
-    username = message.from_user.username.lower() if message.from_user.username else f"user_{message.from_user.id}"
-    usuarios_ids[f"@{username}"] = str(message.from_user.id)
-    guardar_usuarios_ids()
-    
-    idioma = "en" if "participate" in message.text.lower() else "es"
-    
-    mensaje_es = """👋 ¡Bienvenido! Para participar en la promoción, sigue estos pasos:
-
-1️⃣ Completa el formulario aquí: https://docs.google.com/forms/d/e/1FAIpQLScljV2XiOm_1aacLMsXGPK2QifIVeBAx76Ix_rcHbst9O1x2Q/viewform
-
-Si no tienes un referido, coloca tu nombre.
-
-2️⃣ Comparte tu usuario con amigos.
-
-3️⃣ ¡Consigue 10 referidos y desbloquea el grupo del Airdrop! 🚀"""
-    
-    mensaje_en = """👋 Welcome! To participate in the promotion, follow these steps:
-
-1️⃣ Fill out the form here: https://docs.google.com/forms/d/e/1FAIpQLScljV2XiOm_1aacLMsXGPK2QifIVeBAx76Ix_rcHbst9O1x2Q/viewform
-
-If you don't have a referrer, put your name!
-
-2️⃣ Share your username with friends.
-
-3️⃣ Get 10 referrals and unlock the Airdrop group! 🚀"""
-    
-    bot.send_message(message.chat.id, mensaje_es if idioma == "es" else mensaje_en)
-
-# Función para contar referidos
+# Función para contar referidos en Google Sheets
 def contar_referidos():
     conteo = {}
     datos = sheet.get_all_records()
     for row in datos:
-        referido = "@" + row.get("¿Quién te refirió? @:", "").lstrip('@').strip().lower()
+        referido = row.get("¿Quién te refirió? @:", "").strip().lower()
         if referido:
+            if not referido.startswith("@"):
+                referido = f"@{referido}"  # Agregar @ si no lo tiene
             conteo[referido] = conteo.get(referido, 0) + 1
     print(f"📊 Conteo de referidos actualizado: {conteo}")
     return conteo
@@ -121,11 +95,13 @@ def verificar_referidos():
 # Función para mover usuarios al grupo especial
 def mover_usuario(user):
     try:
-        user_key = f"@{user.lstrip('@').strip().lower()}"
+        user_key = user.lower().strip()
+        if not user_key.startswith("@"):
+            user_key = f"@{user_key}"  # Agregar @ si no lo tiene
         user_id = usuarios_ids.get(user_key)
-        
+
         if not user_id:
-            print(f"⚠️ No se encontró el ID de {user}.")
+            print(f"⚠️ No se encontró el ID de {user}. Es posible que no haya escrito 'PARTICIPAR'.")
             return
 
         # Intentar generar un enlace de invitación dinámico
