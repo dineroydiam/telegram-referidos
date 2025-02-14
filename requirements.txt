@@ -1,0 +1,5 @@
+echo "pyTelegramBotAPI
+gspread
+oauth2client
+requests
+langdetect" > requirements.txt
