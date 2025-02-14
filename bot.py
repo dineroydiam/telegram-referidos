@@ -7,17 +7,23 @@ import csv
 import os
 import threading
 import requests
-from langdetect import detect
+import json
 
 # Credenciales de Telegram
-BOT_TOKEN = "7974219914:AAHAK1tg7lLQ4OkRV2UBQUeuz-3XhsRt3VE"
-GROUP_ESPANOL_ID = -1002341781692
-GROUP_INGLES_ID = -1002286734461  # Reemplaza con el ID correcto
-GROUP_AIRDROP_ID = -1002163471969
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+GROUP_ESPANOL_ID = int(os.getenv("GROUP_ESPANOL_ID"))
+GROUP_INGLES_ID = int(os.getenv("GROUP_INGLES_ID"))
+GROUP_AIRDROP_ID = int(os.getenv("GROUP_AIRDROP_ID"))
 
 # Configurar conexión con Google Sheets
-SHEET_CREDENTIALS = "bot-telegram-referidos-ab44d5b3c572.json"
-SHEET_ID = "1XvtuOEH-TEvTovOPK_DhPg1hFytdo0YIhRr3HMKFRbI"
+SHEET_CREDENTIALS = "google_credentials.json"
+SHEET_ID = os.getenv("SHEET_ID")
+
+# Cargar credenciales de Google desde la variable de entorno
+GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
+if GOOGLE_CREDENTIALS:
+    with open(SHEET_CREDENTIALS, "w") as json_file:
+        json_file.write(GOOGLE_CREDENTIALS)
 
 # Configurar bot de Telegram
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -50,9 +56,10 @@ def cargar_usuarios_ids():
     if os.path.exists(ID_FILE):
         with open(ID_FILE, mode="r", encoding="utf-8") as file:
             reader = csv.reader(file)
-            next(reader)  # Saltar encabezado
+            next(reader, None)  # Saltar encabezado
             for row in reader:
-                usuarios_ids[row[0].lower()] = row[1]  # Guardar en minúsculas para evitar errores
+                if len(row) >= 2:
+                    usuarios_ids[row[0].strip().lower()] = row[1].strip()
     print("📂 Lista de usuarios cargados en memoria:", usuarios_ids)
 
 # Función para guardar IDs en CSV
@@ -68,15 +75,12 @@ def guardar_usuarios_ids():
 def enviar_informacion(message):
     username = message.from_user.username.lower() if message.from_user.username else f"user_{message.from_user.id}"
     usuarios_ids[f"@{username}"] = str(message.from_user.id)
+    usuarios_ids[username] = str(message.from_user.id)  # Guardar sin @ también
     guardar_usuarios_ids()
     
-    if "participate" in message.text.lower():
-        idioma = "en"
-    else:
-        idioma = "es"
+    idioma = "en" if "participate" in message.text.lower() else "es"
     
-    if idioma == "es":
-        bot.send_message(message.chat.id, """👋 ¡Bienvenido! Para participar en la promoción, sigue estos pasos:
+    mensaje_es = """👋 ¡Bienvenido! Para participar en la promoción, sigue estos pasos:
 
 1️⃣ Completa el formulario aquí: https://docs.google.com/forms/d/e/1FAIpQLScljV2XiOm_1aacLMsXGPK2QifIVeBAx76Ix_rcHbst9O1x2Q/viewform
 
@@ -84,9 +88,9 @@ Si no tienes un referido, coloca tu nombre.
 
 2️⃣ Comparte tu usuario con amigos.
 
-3️⃣ ¡Consigue 10 referidos y desbloquea el grupo del Airdrop! 🚀""")
-    else:
-        bot.send_message(message.chat.id, """👋 Welcome! To participate in the promotion, follow these steps:
+3️⃣ ¡Consigue 10 referidos y desbloquea el grupo del Airdrop! 🚀"""
+    
+    mensaje_en = """👋 Welcome! To participate in the promotion, follow these steps:
 
 1️⃣ Fill out the form here: https://docs.google.com/forms/d/e/1FAIpQLScljV2XiOm_1aacLMsXGPK2QifIVeBAx76Ix_rcHbst9O1x2Q/viewform
 
@@ -94,18 +98,19 @@ If you don't have a referrer, put your name!
 
 2️⃣ Share your username with friends.
 
-3️⃣ Get 10 referrals and unlock the Airdrop group! 🚀""")
+3️⃣ Get 10 referrals and unlock the Airdrop group! 🚀"""
+    
+    bot.send_message(message.chat.id, mensaje_es if idioma == "es" else mensaje_en)
 
 # Función para contar referidos
 def contar_referidos():
     conteo = {}
     datos = sheet.get_all_records()
     for row in datos:
-        referido = "@" + row.get("¿Quién te refirió? @:", "").lstrip('@').strip().lower()
-        if referido in conteo:
-            conteo[referido] += 1
-        else:
-            conteo[referido] = 1
+        referido = row.get("¿Quién te refirió? @:", "").strip().lower()
+        referido = f"@{referido}" if not referido.startswith("@") else referido
+        if referido:
+            conteo[referido] = conteo.get(referido, 0) + 1
     print(f"📊 Conteo de referidos actualizado: {conteo}")
     return conteo
 
@@ -120,17 +125,14 @@ def verificar_referidos():
 # Función para mover usuarios al grupo especial
 def mover_usuario(user):
     try:
-        user_key = f"@{user.lstrip('@').strip().lower()}"  # Convertir en minúsculas para buscar
+        user_key = user.lstrip("@").strip().lower()
         print(f"🔍 Buscando ID de {user_key} en usuarios_ids: {usuarios_ids}")
-        user_id = usuarios_ids.get(user_key)
+        user_id = usuarios_ids.get(user_key, usuarios_ids.get(f"@{user_key}"))
         
         if not user_id:
             return
 
-        # Generar un link de invitación para el grupo especial
         invite_link = bot.create_chat_invite_link(GROUP_AIRDROP_ID, member_limit=1).invite_link
-
-        # Enviar mensaje por privado
         bot.send_message(user_id, f"""🎉 Congratulations {user}! You have reached 10 referrals and unlocked access to the Airdrop group.
 
 🔗 Join here: {invite_link}""")
@@ -142,8 +144,6 @@ def mover_usuario(user):
 # Iniciar el bot
 if __name__ == "__main__":
     cargar_usuarios_ids()
-    bot.send_message(GROUP_ESPANOL_ID, "🤖 Bot de referidos activo! Envía 'PARTICIPAR' a @referidnewtokenbot para registrarte y recibir el formulario.")
-    bot.send_message(GROUP_INGLES_ID, "🤖 Referral bot is active! Send 'PARTICIPATE' to @referidnewtokenbot register and receive the form.")
     thread = threading.Thread(target=verificar_referidos, daemon=True)
     thread.start()
     bot.polling(none_stop=True)
