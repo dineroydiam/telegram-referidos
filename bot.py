@@ -15,7 +15,7 @@ GROUP_ESPANOL_ID = -1002341781692
 GROUP_INGLES_ID = -1002286734461  # Reemplaza con el ID correcto
 GROUP_AIRDROP_ID = -1002163471969
 
-# Configurar conexi®Æn con Google Sheets
+# Configurar conexi√≥n con Google Sheets
 SHEET_CREDENTIALS = "bot-telegram-referidos.json"
 SHEET_ID = "1XvtuOEH-TEvTovOPK_DhPg1hFytdo0YIhRr3HMKFRbI"
 
@@ -28,7 +28,7 @@ if GOOGLE_CREDENTIALS:
 # Configurar bot de Telegram
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# Autenticaci®Æn con Google Sheets
+# Autenticaci√≥n con Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
 credentials = ServiceAccountCredentials.from_json_keyfile_name(SHEET_CREDENTIALS, scope)
 client = gspread.authorize(credentials)
@@ -51,7 +51,7 @@ if not os.path.exists(ID_FILE):
         writer = csv.writer(file)
         writer.writerow(["Usuario", "ID"])
 
-# Funci®Æn para leer IDs guardados en CSV
+# Funci√≥n para leer IDs guardados en CSV
 def cargar_usuarios_ids():
     if os.path.exists(ID_FILE):
         with open(ID_FILE, mode="r", encoding="utf-8") as file:
@@ -60,9 +60,9 @@ def cargar_usuarios_ids():
             for row in reader:
                 if len(row) >= 2:
                     usuarios_ids[row[0].strip().lower()] = row[1].strip()
-    print("?? Lista de usuarios cargados en memoria:", usuarios_ids)
+    print("üìÇ Lista de usuarios cargados en memoria:", usuarios_ids)
 
-# Funci®Æn para guardar IDs en CSV
+# Funci√≥n para guardar IDs en CSV
 def guardar_usuarios_ids():
     with open(ID_FILE, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
@@ -70,7 +70,7 @@ def guardar_usuarios_ids():
         for usuario, user_id in usuarios_ids.items():
             writer.writerow([usuario, user_id])
 
-# Funci®Æn para manejar nuevos usuarios y detectar idioma
+# Funci√≥n para manejar nuevos usuarios y detectar idioma
 @bot.message_handler(func=lambda message: message.text and message.text.lower() in ["participar", "participate"])
 def enviar_informacion(message):
     username = message.from_user.username.lower() if message.from_user.username else f"user_{message.from_user.id}"
@@ -79,80 +79,80 @@ def enviar_informacion(message):
     
     idioma = "en" if "participate" in message.text.lower() else "es"
     
-    mensaje_es = """?? ?Bienvenido! Para participar en la promoci®Æn, sigue estos pasos:
+    mensaje_es = """üëã ¬°Bienvenido! Para participar en la promoci√≥n, sigue estos pasos:
 
-1?? Completa el formulario aqu®™: https://docs.google.com/forms/d/e/1FAIpQLScljV2XiOm_1aacLMsXGPK2QifIVeBAx76Ix_rcHbst9O1x2Q/viewform
+1Ô∏è‚É£ Completa el formulario aqu√≠: https://docs.google.com/forms/d/e/1FAIpQLScljV2XiOm_1aacLMsXGPK2QifIVeBAx76Ix_rcHbst9O1x2Q/viewform
 
 Si no tienes un referido, coloca tu nombre.
 
-2?? Comparte tu usuario con amigos.
+2Ô∏è‚É£ Comparte tu usuario con amigos.
 
-3?? ?Consigue 10 referidos y desbloquea el grupo del Airdrop! ??"""
+3Ô∏è‚É£ ¬°Consigue 10 referidos y desbloquea el grupo del Airdrop! üöÄ"""
     
-    mensaje_en = """?? Welcome! To participate in the promotion, follow these steps:
+    mensaje_en = """üëã Welcome! To participate in the promotion, follow these steps:
 
-1?? Fill out the form here: https://docs.google.com/forms/d/e/1FAIpQLScljV2XiOm_1aacLMsXGPK2QifIVeBAx76Ix_rcHbst9O1x2Q/viewform
+1Ô∏è‚É£ Fill out the form here: https://docs.google.com/forms/d/e/1FAIpQLScljV2XiOm_1aacLMsXGPK2QifIVeBAx76Ix_rcHbst9O1x2Q/viewform
 
 If you don't have a referrer, put your name!
 
-2?? Share your username with friends.
+2Ô∏è‚É£ Share your username with friends.
 
-3?? Get 10 referrals and unlock the Airdrop group! ??"""
+3Ô∏è‚É£ Get 10 referrals and unlock the Airdrop group! üöÄ"""
     
     bot.send_message(message.chat.id, mensaje_es if idioma == "es" else mensaje_en)
 
-# Funci®Æn para contar referidos
+# Funci√≥n para contar referidos
 def contar_referidos():
     conteo = {}
     datos = sheet.get_all_records()
     for row in datos:
-        referido = row.get("?Qui®¶n te refiri®Æ? @:", "").strip().lower()
+        referido = row.get("¬øQui√©n te refiri√≥? @:", "").strip().lower()
         if referido.startswith("@"):
             conteo[referido] = conteo.get(referido, 0) + 1
-    print(f"?? Conteo de referidos actualizado: {conteo}")
+    print(f"üìä Conteo de referidos actualizado: {conteo}")
     return conteo
 
-# Funci®Æn para verificar referidos y mover usuarios al grupo Airdrop
+# Funci√≥n para verificar referidos y mover usuarios al grupo Airdrop
 def verificar_referidos():
     conteo = contar_referidos()
     for user, cantidad in conteo.items():
         if cantidad >= 10 and user not in moved_users:
-            print(f"? {user} ha alcanzado 10 referidos. Intentando mover al grupo Airdrop...")
+            print(f"‚úÖ {user} ha alcanzado 10 referidos. Intentando mover al grupo Airdrop...")
             mover_usuario(user)
 
-# Funci®Æn para mover usuarios al grupo especial
+# Funci√≥n para mover usuarios al grupo especial
 def mover_usuario(user):
     try:
         user_key = f"@{user.lstrip('@').strip().lower()}"
-        print(f"?? Buscando ID de {user_key} en usuarios_ids: {usuarios_ids}")
+        print(f"üîç Buscando ID de {user_key} en usuarios_ids: {usuarios_ids}")
         user_id = usuarios_ids.get(user_key)
 
         if not user_id:
-            print(f"?? ERROR: No se encontr®Æ el ID de {user}. Es posible que el usuario no haya interactuado con el bot.")
-            bot.send_message(GROUP_ESPANOL_ID, f"?? {user}, tu ID no est®¢ registrado. Env®™ame un mensaje en privado con 'PARTICIPAR' para que pueda agregarte.")
+            print(f"‚ö†Ô∏è ERROR: No se encontr√≥ el ID de {user}. Es posible que el usuario no haya interactuado con el bot.")
+            bot.send_message(GROUP_ESPANOL_ID, f"‚ö†Ô∏è {user}, tu ID no est√° registrado. Env√≠ame un mensaje en privado con 'PARTICIPAR' para que pueda agregarte.")
             return
 
-        # Generar link de invitaci®Æn
+        # Generar link de invitaci√≥n
         invite_link = bot.create_chat_invite_link(GROUP_AIRDROP_ID, member_limit=1).invite_link
 
         # Enviar mensaje privado al usuario
-        bot.send_message(user_id, f"""?? Congratulations {user}! You have reached 10 referrals and unlocked access to the Airdrop group.
+        bot.send_message(user_id, f"""üéâ Congratulations {user}! You have reached 10 referrals and unlocked access to the Airdrop group.
 
-?? Join here: {invite_link}""")
+üîó Join here: {invite_link}""")
 
         # Mensaje en el grupo Airdrop
-        bot.send_message(GROUP_AIRDROP_ID, f"?? Welcome {user} to the Airdrop Group! / ?Bienvenido {user} al Grupo del Airdrop!")
+        bot.send_message(GROUP_AIRDROP_ID, f"üöÄ Welcome {user} to the Airdrop Group! / ¬°Bienvenido {user} al Grupo del Airdrop!")
 
         moved_users.add(user)
-        print(f"? {user} fue movido al grupo Airdrop.")
+        print(f"‚úÖ {user} fue movido al grupo Airdrop.")
     except Exception as e:
-        print(f"? Error en mover_usuario: {e}")
+        print(f"‚ùå Error en mover_usuario: {e}")
 
 # Iniciar el bot
 if __name__ == "__main__":
     cargar_usuarios_ids()
-    bot.send_message(GROUP_ESPANOL_ID, "?? Bot de referidos activo! Env®™a 'PARTICIPAR' a @referidnewtokenbot para registrarte y recibir el formulario.")
-    bot.send_message(GROUP_INGLES_ID, "?? Referral bot is active! Send 'PARTICIPATE' to @referidnewtokenbot to register and receive the form.")
+    bot.send_message(GROUP_ESPANOL_ID, "ü§ñ Bot de referidos activo! Env√≠a 'PARTICIPAR' a @referidnewtokenbot para registrarte y recibir el formulario.")
+    bot.send_message(GROUP_INGLES_ID, "ü§ñ Referral bot is active! Send 'PARTICIPATE' to @referidnewtokenbot to register and receive the form.")
     thread = threading.Thread(target=verificar_referidos, daemon=True)
     thread.start()
     bot.polling(none_stop=True)
