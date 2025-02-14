@@ -8,6 +8,7 @@ import os
 import threading
 import requests
 from langdetect import detect
+import json
 
 # Credenciales de Telegram
 BOT_TOKEN = "7974219914:AAHAK1tg7lLQ4OkRV2UBQUeuz-3XhsRt3VE"
@@ -16,8 +17,14 @@ GROUP_INGLES_ID = -1002286734461  # Reemplaza con el ID correcto
 GROUP_AIRDROP_ID = -1002163471969
 
 # Configurar conexión con Google Sheets
-SHEET_CREDENTIALS = "bot-telegram-referidos-ab44d5b3c572.json"
+SHEET_CREDENTIALS = "bot-telegram-referidos.json"
 SHEET_ID = "1XvtuOEH-TEvTovOPK_DhPg1hFytdo0YIhRr3HMKFRbI"
+
+# Cargar credenciales de Google desde la variable de entorno
+GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
+if GOOGLE_CREDENTIALS:
+    with open(SHEET_CREDENTIALS, "w") as json_file:
+        json_file.write(GOOGLE_CREDENTIALS)
 
 # Configurar bot de Telegram
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -70,13 +77,9 @@ def enviar_informacion(message):
     usuarios_ids[f"@{username}"] = str(message.from_user.id)
     guardar_usuarios_ids()
     
-    if "participate" in message.text.lower():
-        idioma = "en"
-    else:
-        idioma = "es"
+    idioma = "en" if "participate" in message.text.lower() else "es"
     
-    if idioma == "es":
-        bot.send_message(message.chat.id, """👋 ¡Bienvenido! Para participar en la promoción, sigue estos pasos:
+    mensaje_es = """👋 ¡Bienvenido! Para participar en la promoción, sigue estos pasos:
 
 1️⃣ Completa el formulario aquí: https://docs.google.com/forms/d/e/1FAIpQLScljV2XiOm_1aacLMsXGPK2QifIVeBAx76Ix_rcHbst9O1x2Q/viewform
 
@@ -84,9 +87,9 @@ Si no tienes un referido, coloca tu nombre.
 
 2️⃣ Comparte tu usuario con amigos.
 
-3️⃣ ¡Consigue 10 referidos y desbloquea el grupo del Airdrop! 🚀""")
-    else:
-        bot.send_message(message.chat.id, """👋 Welcome! To participate in the promotion, follow these steps:
+3️⃣ ¡Consigue 10 referidos y desbloquea el grupo del Airdrop! 🚀"""
+    
+    mensaje_en = """👋 Welcome! To participate in the promotion, follow these steps:
 
 1️⃣ Fill out the form here: https://docs.google.com/forms/d/e/1FAIpQLScljV2XiOm_1aacLMsXGPK2QifIVeBAx76Ix_rcHbst9O1x2Q/viewform
 
@@ -94,7 +97,9 @@ If you don't have a referrer, put your name!
 
 2️⃣ Share your username with friends.
 
-3️⃣ Get 10 referrals and unlock the Airdrop group! 🚀""")
+3️⃣ Get 10 referrals and unlock the Airdrop group! 🚀"""
+    
+    bot.send_message(message.chat.id, mensaje_es if idioma == "es" else mensaje_en)
 
 # Función para contar referidos
 def contar_referidos():
@@ -120,17 +125,14 @@ def verificar_referidos():
 # Función para mover usuarios al grupo especial
 def mover_usuario(user):
     try:
-        user_key = f"@{user.lstrip('@').strip().lower()}"  # Convertir en minúsculas para buscar
+        user_key = f"@{user.lstrip('@').strip().lower()}"
         print(f"🔍 Buscando ID de {user_key} en usuarios_ids: {usuarios_ids}")
         user_id = usuarios_ids.get(user_key)
         
         if not user_id:
             return
 
-        # Generar un link de invitación para el grupo especial
         invite_link = bot.create_chat_invite_link(GROUP_AIRDROP_ID, member_limit=1).invite_link
-
-        # Enviar mensaje por privado
         bot.send_message(user_id, f"""🎉 Congratulations {user}! You have reached 10 referrals and unlocked access to the Airdrop group.
 
 🔗 Join here: {invite_link}""")
@@ -142,7 +144,7 @@ def mover_usuario(user):
 # Iniciar el bot
 if __name__ == "__main__":
     cargar_usuarios_ids()
-    bot.send_message(GROUP_ESPANOL_ID, "🤖 Bot de referidos activo! Envía 'PARTICIPAR' a @referidnewtokenbot para registrarte y recibir el formulario.")
+    bot.send_message(GROUP_ESPANOL_ID, "🤖 Bot de referidos activo! Envía 'PARTICIPAR'a @referidnewtokenbot para registrarte y recibir el formulario.")
     bot.send_message(GROUP_INGLES_ID, "🤖 Referral bot is active! Send 'PARTICIPATE' to @referidnewtokenbot register and receive the form.")
     thread = threading.Thread(target=verificar_referidos, daemon=True)
     thread.start()
